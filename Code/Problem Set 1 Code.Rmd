@@ -1,0 +1,84 @@
+---
+title: "Problem Set Assignment No. 1"
+author: "Aria Muchhal"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  pdf_document: default
+---
+
+```{r SetupChunk, echo = TRUE}
+
+## Keep this line always
+knitr::opts_chunk$set(echo = TRUE,
+                      collapse = TRUE,
+                      warning = FALSE, message = FALSE,
+                      fig.align = 'center')
+
+
+```
+
+## 1. Setup your document
+
+### A. Load Libraries
+
+```{r q1A}
+library(knitr)
+library(wooldridge)
+wage2=wooldridge::wage2
+```
+
+*In the R videos on MediaSpace, you are asked to install multiple packages. Name three of them here.*
+rmarkdown, dplyr, and magrittr.
+
+### B. Show installed packages
+
+```{r q1B}
+installed.packages()[,c(1,3)]
+```
+
+Write your answer to 1B here if requested.
+
+## 2. Standard Error of the Mean
+
+### A. Subset wage2
+
+```{r q2A}
+wage2 = wage2[wage2$educ==16,1]
+NROW(wage2)
+```
+*How many rows does wage2 have once you have subset it? Use NROW to see.*
+150
+
+### B. Calculate the sample mean and sample variance for wage in our sample of wages
+```{r q2B}
+meanCollege=mean(wage2)
+varCollege=var(wage2)
+nCollege=NROW(wage2)
+print(meanCollege)
+print(varCollege)
+print(nCollege)
+```
+*What are the units of the wage column? Hint: you can learn about wooldridge datasets by using the help for that data ?wage2*
+monthly earnings
+
+### C. Calculate the standard error of the mean
+```{r q2C}
+semCollege = sqrt(varCollege/nCollege)
+print(semCollege)
+```
+
+## 3. Hypothesis testing: population mean
+
+### A. Hypothesis testing H0 : µwage = 1, 200
+
+```{r q3A}
+dfn=nCollege-1
+tcrit=qt(.975,dfn)
+ci=(meanCollege-(tcrit*semCollege))
+ci2=(meanCollege+(tcrit*semCollege))
+print (ci)
+print(ci2)
+```
+
+*What is your answer to this question, in your own words, and why?*
+I would say no, because 1200 is not within the 95% confidence interval of (1045.71, 1171).

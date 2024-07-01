@@ -1,0 +1,224 @@
+---
+title: "Problem Set Assignment No. 3"
+author: "Aria Muchhal"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  pdf_document: default
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+```{r SetupChunk, echo = TRUE}
+
+## Keep this line always
+knitr::opts_chunk$set(echo = TRUE,
+                      collapse = TRUE,
+                      warning = FALSE, message = FALSE,
+                      fig.align = 'center')
+
+
+```
+
+## 0.
+
+### Task A.
+
+```{r q0A}
+library(knitr)
+library(tinytex)
+library(wooldridge)
+library(lmtest)
+library(sandwich)
+library(AER)
+library(fixest)
+library(modelsummary)
+
+```
+
+## 1.
+
+### Task A.
+
+```{r t1A}
+data(CASchools)
+table(CASchools$county)
+```
+
+### Question A.
+
+*a. How many observations are in the data?*
+
+420. 
+
+*b. We are interested in test scores. Which variable(s) in CASchools would be our outcome of interest?*
+
+read and math
+
+*c. Using the output from the table(...) command, what county has the most observations in the data?*
+
+Sonoma.
+
+### Task B. Data Cleaning
+
+(a) 
+
+```{r t1b}
+studentTeacherRatio=CASchools$students/CASchools$teachers
+CASchools$studentTeacherRatio<-studentTeacherRatio
+```
+
+(b) 
+
+```{r}
+bigCounties=CASchools[CASchools$county=='Sonoma'|CASchools$county=='Los Angeles'|CASchools$county=='Kern', TRUE]
+```
+
+(c) 
+
+```{r}
+A=CASchools[CASchools$county=='Sonoma'|CASchools$county=='Los Angeles'|CASchools$county=='Kern', c('district', 'school', 'county', 'grades', 'students', 'teachers', 'calworks', 'lunch', 'computer', 'expenditure', 'income', 'english', 'read', 'math', 'studentTeacherRatio')]
+```
+
+(d) 
+
+```{r}
+plot(A$studentTeacherRatio, A$math, col="green")
+plot(A$studentTeacherRatio, A$read)
+
+```
+
+(e) 
+
+```{r}
+plot(A$income, A$math, col="blue")
+plot(A$income, A$read, col="blue")
+```
+
+(f) 
+
+```{r}
+plot(A$studentTeacherRatio, A$income, col=as.factor(A$county))
+```
+
+### Question B. Plot the relationship
+
+*a. Using your first two plots, does there appear to be a relationship between higher student:teacher ratios and math scores? What about reading scores?*
+
+One can see a slight negative correlation between math and reading scores and student:teacher ratios.
+Essentially, higher ratios appear to be associated with lower scores.
+
+*b. Using your last two plots, does there appear to be a relationship between higher income and math scores? What about reading scores?*
+
+One can see a very strong positive correlation between math and reading scores and income.
+
+*c. Using the final plot, does it appear that some counties have higher income or higher student:teacher ratios (or both)?*
+
+While some counties are more dispersed than others, it does seem like 1 county has a higher income and lower student to teacher ratio, another has a higher income and higher student to teacher ratio, and the last has a lower income and dispersed student to teacher ratio.
+
+### Task C
+
+(a) 
+
+```{r}
+coeftest(lm(read ~ calworks, A), vcov = vcovHC, "HC1")
+```
+
+### Question C
+
+*a. What is the coefficient on calworks and what does it mean? Note that calworks is in percentage points (you can see the range using range(CASchools\$calworks))*
+
+-1.1971, so one additional point in a school's reading scores is associated with a 1.1971% decrease in calworks.
+
+*b. What potential omitted variables might bias this coefficient? That is, is there something unobserved correlated with calworks that might also be correlated with read?*
+
+Calworks would definitely be associated with income and lunch, and it is likely that both would be correlated with read.
+
+### Task D
+
+(a) 
+
+```{r}
+coeftest(lm(read ~ calworks+as.factor(county), A), vcov = vcovHC, "HC1")
+```
+
+### Question D
+
+*a. What is the new coefficient on calworks? Is it larger or smaller?*
+
+4.895e-06+2.2e-16=4.895e-6, which is smaller.
+
+*b. What is the base county level?*
+
+653.11817
+
+*c. What is the expected reading score for an observation in Sonoma County, at a schools with a calworks value of 25%?*
+
+653.11817+20.94302+(2.2e-16+1.180e-06)\*25=674.061219
+
+### Task E
+
+(a) 
+
+```{r}
+uhat1=residuals(lm(read ~ calworks+as.factor(county), A), na.rm=FALSE)
+A$uhat1<-uhat1
+uhat2=uhat1^2
+A$uhat2<-uhat2
+```
+
+(b) Run the appropriate regression (see slide 108 of 02-Multivariate Regression) and show the results
+
+```{r}
+appropReg<-lm(uhat2 ~ calworks+as.factor(county), A)
+summary(appropReg)
+```
+
+### Question E
+
+*a. What is the relevant output of the regression summary for our Breusch-Pagan Test H0: "No Heteroskedasticity present"*
+
+The p-value of the F statistic from this test.
+If it's small, we reject the H0--homoskedasticity--which would indicate heteroskedasticity.
+
+*b. What is your interpretation of the results? Should we be using heteroskedastic errors?*
+
+The p-value is small: .008246, so we can reject the H0 and feel comfortable using heteroskedastic errors.
+
+### Task F
+
+```{r}
+bptest(read ~ calworks+as.factor(county), data=A)
+```
+
+### Question F
+
+*a. What is the interpretation of the result from this version of the Breusch-Pagan test?* The pvalue is quite low, 0.009679, so we should reject the H0 of "No Heteroskedasticity present" and use HC robust errors.
+
+*b. Is it the same (or very close) to our results from Task 1.E?* It is not the same, but it is quite close.
+
+### Task G
+
+```{r}
+coeftest(lm(read ~ calworks+english+calworks*english+as.factor(county), A), vcov = vcovHC, "HC1")
+
+```
+
+### Question G
+
+*a. What is the effect of an increase in calworks by one unit for a school with 0% english learners (english=0)?*
+
+     663.6423532-0.7711882=662.871165 increase in reading score, with all else held equal.
+
+*b.What is the effect of an increase in calworks by one unit for a school with 40% english learners?*
+
+    663.6423532-0.7711882-(0.8269718*.4)+(0.0158432*.4)=662.546714 increase in reading score, with all else held equal.
+
+*c.What is the formula you used to determine dRead/dCalworks ? Hint: it includes the variable english. Write it using LaTeX.*
+
+$\frac{dRead}{dCalworks}=\beta_0+\beta_{calworks}*calworks+\beta_{english}*english+\beta_{calworks-and-english}*(calworks-and-english)$
+
+
+## 2. Last Question
+
+I spent 9 continuous hours on this problem set, but it took around 2 days with breaks.

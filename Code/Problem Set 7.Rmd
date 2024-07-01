@@ -1,0 +1,289 @@
+---
+title: "Problem Set Assignment No. 7"
+author: "Aria Muchhal"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  pdf_document: 
+    latex_engine: xelatex
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+```{r SetupChunk, echo = TRUE}
+
+## Keep this line always
+knitr::opts_chunk$set(echo = TRUE,
+                      collapse = TRUE,
+                      warning = FALSE, message = FALSE,
+                      fig.align = 'center')
+
+
+```
+
+## 1. Setup
+
+### Task 1.1.
+
+```{r q0A}
+library(knitr)
+library(tinytex)
+library(lmtest)
+library(sandwich)
+library(zoo)
+library(lubridate)
+library(AER)
+library(dplyr)
+
+hw6 = read.csv("https://raw.githubusercontent.com/ajkirkpatrick/EC420online/Spring22/PubData/hw6.csv",
+stringsAsFactors = F)
+```
+
+### Question 1.1
+*(a) What is the variable name for the time dimension of this panel?*
+yq.
+*(b) What is the variable name for the unit of this panel?*
+WPOOH: watts per owner-occupied household per quarter.
+
+*(c) In what data type is the yq variable stored?*
+characters.
+
+## 2. Difference-in-Differences
+
+### Task 2.1
+a)
+```{r tA}
+hw6$yq=as.yearqtr(hw6$yq)
+```
+
+b)
+```{r}
+head(hw6$yq)
+head(hw6$yq + .75)
+```
+
+c)
+```{r}
+table(hw6$yq)
+```
+
+d)
+```{r}
+mySubsetData<-subset(hw6, city == 'Agoura Hills')
+plot(mySubsetData$yq, mySubsetData$WPOOH)
+```
+
+e)
+```{r}
+plot(mySubsetData$yq, mySubsetData$WPOOH)
+abline(lm(WPOOH ~ yq, mySubsetData), col="gray50")
+```
+
+### Question 2.1
+
+*a.  What is the mean value for total watts installed, cecptrating, in the data?*
+60024.37
+
+
+*b.What is T, the number of time periods*
+18.
+
+*c. What is N, the number of cities*
+125.
+
+*d. We call a panel “balanced” if we have one observation in every city for every time period. Given the outcome of Task 2.1.a and Question 2.1.b and 2.1.c, do we have a “balanced” panel?*
+Yes.
+
+*What city did you choose for your plot? Does there seem to be a time trend in the outcome variable, WPOOH?*
+Agoura Hills, and yes.
+
+### Task 2.2
+
+(a) 
+
+```{r t1b}
+TREATMENT = read.csv(paste0("https://raw.githubusercontent.com",
+"/ajkirkpatrick/EC420online/Spring22/",
+"PubData/TREATMENT.csv"),
+stringsAsFactors=F)
+```
+
+(b) 
+
+```{r}
+sum(duplicated(TREATMENT$city))
+```
+
+(c) 
+
+```{r}
+PAN.merged = merge(x = hw6, y = TREATMENT, by = c('city'), all=F)
+```
+
+(d) 
+
+```{r}
+names(PAN.merged)
+NROW(PAN.merged)
+```
+
+### Question 2.2
+
+*a. How many observations do you have now? Hint: it should be 2,250*
+
+2250.
+
+*b. View() the data to see what we have. Is this panel, time series, or cross-sectional data? Why? Don’t put View() into your code chunk, just use it directly in the console to browse the data.*
+panel.
+
+### Task 2.3
+
+(a) 
+
+```{r}
+PAN.merged$PACE.startdate = ymd(PAN.merged$PACE.start)
+
+```
+(b) 
+
+```{r}
+PAN.merged$PACE.startdate=as.yearqtr(PAN.merged$PACE.startdate)
+```
+
+(c) 
+
+```{r}
+PAN.merged$PACE=ifelse(PAN.merged$yq>=PAN.merged$PACE.startdate, T, F)
+```
+
+d) 
+
+```{r}
+PAN.merged[is.na(PAN.merged$PACE), "PACE"] = FALSE
+```
+
+e) 
+
+```{r}
+treated.cities = PAN.merged[PAN.merged$PACE==T,"city"]
+PAN.merged$TMT=PAN.merged$city %in% treated.cities
+```
+
+f)
+```{r}
+boxplot(WPOOH~ TMT, data = PAN.merged[PAN.merged$PACE==F,])
+```
+
+### Question 2.3
+
+*a. Use table(...) to see how many treated city-quarter observations we have*
+
+1965
+
+*b.  The boxplot shows the mean (the horizontal bar) and the 25th-75th percentile (the edges of the box) for the variable WPOOH for each group before PACE starts. The dots are the “outliers”. From this boxplot, does it look like there is a systematic difference before treatment between the treatment and the control?*
+
+No, but it would depend on how strictly similar the control and treatment need to be. 
+
+
+### Task 2.4
+
+```{r}
+coeftest(lm(WPOOH~PACE+PWRPRICE+incentiverate,
+data=PAN.merged[PAN.merged$TMT==T,],), vcov = vcovHC, "HC1")
+```
+
+### Question 2.4
+
+*a. By including PWRPRICE and incentiverate, what are we controlling for and why?*
+
+The price per watt and per-watt subsidy given, which would impact the amount of watts people use without being related to PACE: if watts are more expensive, people will install less, and if subsidies are granted for increased wattage, people will install more.
+ 
+*b. Can you think of anything that isn’t controlled for that could cause bias? Hint: there are lots of possible answers since we are only looking at the treatment group, but make sure you explain why yours could cause bias!*
+
+cecprtrating, as if a city is installing more solar watts, it will be more accessible to people and they may be influnced to install some as well.
+
+*c.  What is the coefficient on incentiverate and what does it mean?*
+
+0.42232, so for one unit of increased average incentive received, the expected watts installed per owner-occurpied household increased by 0.42232.
+
+*d. Does this comport with your prior expectation? That is, does it make sense? Why or why not?*
+
+Yes, as an incentive to buy solar panels would increase installation of solar panels.
+
+*e. What is the coefficient on PACE and what does it mean? Make sure you state your answer including units.* 
+
+1.52605. In cities in which the PACE program was enacted, there was a 1.52605 increase in watts installed per owner occupied househould.
+
+*f. What is the std. error on the coefficient for PACE, and is it statistically significantly different from zero?*
+
+0.26587, and no.
+
+### Task 2.5
+
+(a) 
+
+```{r}
+coeftest(lm(WPOOH~PACE+PWRPRICE+incentiverate,
+data=PAN.merged), vcov = vcovHC, "HC1")
+```
+
+### Question 2.5
+
+*a.  If we call the cities with PACE programs the “treatment”, what do we call the cities without treatment?*
+
+Untreated.
+
+*b. What is the coefficient on PACE in this specification?*
+
+0.553135
+
+*C. Is it significant? Why or why not?*
+
+Yes, it's standard error is not significantly different from 0.
+
+*d. Is there anything missing that we have not controlled for?*
+
+Innate differences between the cities that were treated vs not aside from treatment.
+
+### Task 2.6
+
+(a) 
+
+```{r}
+myDID = lm(WPOOH ~ PACE + yq + city, PAN.merged)
+coeftest(myDID, vcov = vcovHC, 'HC1')
+```
+
+### Question 2.6
+
+*a. By adding the fixed effects, what have we controlled for?*
+
+The innate differences in consumers living in different cities or time periods.
+
+*b. What is the identifying assumption for this regression?*
+
+The treated cities are assumed to have similar trends to the untreated cities in the absence of treatment.
+
+*c. What is the coefficient on PACE and what does it mean? Is this the ATE?*
+
+7.4819e-01, so there’s an 7.4819% increase in the watts installed per owner occupied household when PACE is enacted.
+
+*d. Is it statistically significant? Why?*
+
+Yes, as the standard deviation is not signficantly far from 0.
+
+*e. What is the mean of the outcome in the data (use mean(...)) and is the effect on PACE economically meaningful or not. That is, compared to the average value of WPOOH, is the effect big or small?*
+
+The mean of WPOOH is 0.8514836, so the effect not small. 
+
+*f. Which specification do you feel is the least biased? Why?*
+
+I think this one is, as it controls for a lot more and results in a smaller PACE impact, which feels more realistic. I think it's important to remember that cities that would enact PACE policy would also have a lot of other factors making it easier to install solar panels or go green, and their residents are likely to be more conscious as well, which is an important bias.
+
+*g.  Scroll down to see the time fixed effects. Do they follow a pattern? Does that pattern match the pattern you saw in the plot in Task 2.1? Note that, depending on what size window you have open, the p-value column might appear down below*
+
+I see a small pattern, where the passage of time is increasing WPOOH, which is similar to Task 2.1.
+
+## Section 3
+
+I spent 4 continuous hours on this problem set, but I broke it up into several days with breaks.
